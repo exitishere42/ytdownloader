@@ -1,45 +1,106 @@
-# YouTube Downloader (`ytdownloader`)
+<div align="center">
 
-A fast, reliable, cross-platform desktop application for Windows and Linux to download YouTube videos (MP4) and audio (MP3) with live metadata preview and download queue.
+<img src="ytdownloader.png" alt="ytdownloader Logo" width="128" height="128" />
+
+```text
+         _       _                     _                 _           
+ _   _  | |_  __| |  _____      ___ __ | | ___   __ _   __| | ___ _ __ 
+| | | | | __|/ _` | / _ \ \ /\ / / '_ \| |/ _ \ / _` | / _` |/ _ \ '__|
+| |_| | | |_| (_| || (_) \ V  V /| | | | | (_) | (_| || (_| |  __/ |   
+ \__, |  \__|\__,_| \___/ \_/\_/ |_| |_|_|\___/ \__,_| \__,_|\___|_|   
+ |___/                                                                 
+```
+
+**Fast, modern YouTube Video & Audio Downloader**  
+*Built with Java 21 LTS & JavaFX 21*
+
+[Features](#features) • [Installation](#installation) • [Build from Source](#build-from-source) • [Releases](https://github.com/exitishere42/ytdownloader/releases/latest)
+
+</div>
+
+---
 
 ## Features
-- **Fast Metadata Preview:** Instantly loads video title, channel, duration, and thumbnail preview.
-- **Multiple Formats:** Download high-resolution videos (Best, 1080p, 720p, 480p) or extract audio (MP3).
-- **Download Queue:** Manage concurrent and sequential downloads with real-time speed, ETA, and progress indicators.
-- **Zero-Setup Dependency Bootstrap:** Automatically downloads and configures required helper binaries (`yt-dlp`) on Windows and Linux without manual installation.
-- **Cross-Platform:** Native system integration on Windows and Linux, including direct "Show in Folder" actions.
 
-## Prerequisites
-- **Java Development Kit (JDK):** Version 21 or higher
-- **Apache Maven:** Version 3.8+
+- **Instant Metadata Preview**: Automatically fetches video title, channel, duration, and thumbnail preview as soon as a YouTube link is pasted.
+- **Multiple Formats & Resolutions**:
+  - **Video**: High-definition MP4 (Best Quality, 1080p, 720p, 480p).
+  - **Audio**: High-quality MP3 audio extraction.
+- **Download Queue & Parallel Execution**:
+  - Add multiple videos to queue.
+  - Configurable concurrent downloads.
+  - Live progress bars with download speed (`MB/s`) and remaining time (`ETA`).
+- **Zero-Setup Helper Bootstrap**:
+  - Automatically verifies and downloads necessary helper utilities (`yt-dlp`) on first launch into the user app data directory.
+  - No manual command-line installation required.
+- **Cross-Platform System Integration**:
+  - Native "Show in Folder" action for Windows Explorer and Linux file managers (Nautilus, Dolphin, Nemo, Thunar).
+  - Desktop launcher and app menu integration with custom high-resolution logo.
 
-## Quick Start
+---
 
-### Run in Development
+## Installation
+
+### Linux One-Liner
 ```bash
-mvn clean compile
+curl -fsSL https://github.com/exitishere42/ytdownloader/releases/latest/download/install.sh | bash
+```
+
+### Windows
+Download and run [`install.bat`](https://github.com/exitishere42/ytdownloader/releases/latest/download/install.bat) from the [latest release](https://github.com/exitishere42/ytdownloader/releases/latest).
+
+### Standalone Fat-JAR (Manual)
+Download `ytdownloader-1.0.0-all.jar` from [Releases](https://github.com/exitishere42/ytdownloader/releases/latest) and run:
+```bash
+java -jar ytdownloader-1.0.0-all.jar
+```
+
+### Uninstall
+- **Linux**: `curl -fsSL https://github.com/exitishere42/ytdownloader/releases/latest/download/uninstall.sh | bash`
+- **Windows**: Run `uninstall.bat` in `%USERPROFILE%\ytdownloader`
+
+---
+
+## Build from Source
+
+### Requirements
+- **Java 21 LTS** or newer
+- **Apache Maven 3.8+**
+
+### Run Application (Development)
+On Windows:
+```cmd
+run.bat
+```
+
+Or via Maven:
+```bash
 mvn javafx:run
 ```
 
-### Build Executable Fat-JAR
+### Compile & Run Tests
+```bash
+mvn clean test
+```
+
+### Build Standalone Executable Fat-JAR
 ```bash
 mvn clean package
 ```
 
-The resulting standalone JAR will be located at:
+The standalone fat JAR is generated at:
 ```bash
 target/ytdownloader-1.0.0-all.jar
 ```
 
-Run the standalone application with:
-```bash
-java -jar target/ytdownloader-1.0.0-all.jar
-```
+---
 
-## Running Tests
-```bash
-mvn test
-```
+## Author
 
-## License
-MIT License
+```text
++-------------------------------------------------------------------+
+|  Programmed by:     exitishere42                                  |
+|  GitHub:            https://github.com/exitishere42               |
+|  Repository:        https://github.com/exitishere42/ytdownloader  |
++-------------------------------------------------------------------+
+```

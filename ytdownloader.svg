@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4B4B"/>
+      <stop offset="100%" stop-color="#D32F2F"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect x="32" y="32" width="448" height="448" rx="100" fill="url(#bgGrad)" filter="url(#shadow)"/>
+
+  <!-- Download Arrow & Tray (White) -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Down Arrow -->
+    <line x1="256" y1="140" x2="256" y2="310"/>
+    <polyline points="180,244 256,320 332,244"/>
+    <!-- Bottom Tray -->
+    <path d="M148,310 v52 c0,13.2 10.8,24 24,24 h168 c13.2,0 24,-10.8 24,-24 v-52"/>
+  </g>
+</svg>
