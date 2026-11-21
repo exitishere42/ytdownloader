@@ -139,12 +139,13 @@ public class DependencyManager {
         URL url = URI.create(urlString).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         connection.setConnectTimeout(15000);
         connection.setReadTimeout(30000);
 
         int status = connection.getResponseCode();
         if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM
-                || status == HttpURLConnection.HTTP_SEE_OTHER) {
+                || status == HttpURLConnection.HTTP_SEE_OTHER || status == 307 || status == 308) {
             String newUrl = connection.getHeaderField("Location");
             downloadFileWithRedirects(newUrl, targetPath, progressConsumer);
             return;

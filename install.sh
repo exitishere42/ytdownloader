@@ -10,9 +10,9 @@ set -e
 REPO="exitishere42/ytdownloader"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/ytdownloader}"
 APP_NAME="ytdownloader"
-JAR_NAME="ytdownloader-1.0.0-all.jar"
+JAR_NAME="ytdownloader-1.0.1-all.jar"
 
-DETECTED_JAR=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -o '"name": *"ytdownloader-[^"]*-all\.jar"' | head -n 1 | cut -d '"' -f 4 || true)
+DETECTED_JAR=$(curl -fsSL -H "User-Agent: Mozilla/5.0" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -o '"name": *"ytdownloader-[^"]*-all\.jar"' | head -n 1 | cut -d '"' -f 4 || true)
 if [ -n "$DETECTED_JAR" ]; then
     JAR_NAME="$DETECTED_JAR"
 fi
@@ -98,11 +98,16 @@ chmod +x "$INSTALL_DIR/uninstall.sh" 2>/dev/null || true
 cp -f "$INSTALL_DIR/$JAR_NAME" "$INSTALL_DIR/ytdownloader.jar" 2>/dev/null || true
 
 # Startskript run.sh erzeugen
-cat > "$INSTALL_DIR/run.sh" << EOF
+cat > "$INSTALL_DIR/run.sh" << 'EOF'
 #!/usr/bin/env bash
-SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-cd "\$SCRIPT_DIR"
-exec java -jar "\$SCRIPT_DIR/ytdownloader.jar" "\$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+JAR_FILE=$(ls -t "$SCRIPT_DIR"/ytdownloader-*-all.jar "$SCRIPT_DIR"/ytdownloader.jar 2>/dev/null | head -n 1)
+if [ -z "$JAR_FILE" ]; then
+    echo "[!] Keine ytdownloader JAR gefunden in $SCRIPT_DIR" >&2
+    exit 1
+fi
+exec java -jar "$JAR_FILE" "$@"
 EOF
 chmod +x "$INSTALL_DIR/run.sh"
 
