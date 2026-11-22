@@ -28,7 +28,11 @@ public class MetadataService {
         return CompletableFuture.supplyAsync(() -> {
             Path ytDlp = dependencyManager.findYtDlp();
             if (!dependencyManager.isYtDlpInstalled()) {
-                throw new IllegalStateException("yt-dlp ist noch nicht installiert.");
+                try {
+                    ytDlp = dependencyManager.ensureYtDlpAsync(null).get(60, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new IllegalStateException("yt-dlp ist noch nicht bereitgestellt: " + e.getMessage());
+                }
             }
 
             try {

@@ -26,9 +26,13 @@ public class DownloadEngine {
         return CompletableFuture.runAsync(() -> {
             Path ytDlp = dependencyManager.findYtDlp();
             if (!dependencyManager.isYtDlpInstalled()) {
-                task.setStatus(DownloadStatus.FAILED);
-                task.setErrorMessage("yt-dlp ist nicht installiert.");
-                return;
+                try {
+                    ytDlp = dependencyManager.ensureYtDlpAsync(null).get(60, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    task.setStatus(DownloadStatus.FAILED);
+                    task.setErrorMessage("yt-dlp nicht verfügbar: " + e.getMessage());
+                    return;
+                }
             }
 
             try {

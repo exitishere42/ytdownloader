@@ -4,6 +4,7 @@ import de.exit.ytdownloader.core.DependencyManager;
 import de.exit.ytdownloader.core.DownloadEngine;
 import de.exit.ytdownloader.core.QueueManager;
 import de.exit.ytdownloader.model.DownloadFormat;
+import de.exit.ytdownloader.model.DownloadStatus;
 import de.exit.ytdownloader.model.DownloadTask;
 import de.exit.ytdownloader.model.VideoMetadata;
 import de.exit.ytdownloader.service.MetadataService;
@@ -17,7 +18,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -29,7 +29,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 
 import java.nio.file.Path;
@@ -37,7 +38,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MainWindow extends BorderPane {
+public class MainWindow extends StackPane {
 
     private final Stage stage;
     private final DependencyManager dependencyManager;
@@ -46,26 +47,27 @@ public class MainWindow extends BorderPane {
     private final SettingsService settingsService;
     private final MetadataService metadataService;
 
+    // UI Controls
     private TextField urlField;
     private ComboBox<DownloadFormat> formatCombo;
     private Button downloadButton;
     private VBox queueContainer;
-    private Label emptyQueueLabel;
-    private Label footerStatusLabel;
-    private Label footerDirLabel;
+    private VBox emptyStateBox;
+    private Label queueCountLabel;
+    private Label trafficStatusText;
+    private Circle trafficDot;
+    private Label folderLabel;
 
-    // Dependency Banner
-    private HBox dependencyBanner;
-    private Label dependencyStatusLabel;
-    private ProgressBar dependencyProgressBar;
-
-    // Preview Card
-    private HBox previewCard;
+    // Preview Dock
+    private HBox previewDock;
     private ImageView previewThumbnail;
     private Label previewTitle;
     private Label previewChannel;
     private Label previewDuration;
     private VideoMetadata currentMetadata;
+
+    // In-App Modal Settings
+    private SettingsOverlay settingsOverlay;
 
     private final Map<String, TaskCard> cardMap = new HashMap<>();
 
@@ -74,76 +76,106 @@ public class MainWindow extends BorderPane {
         this.dependencyManager = new DependencyManager();
         this.engine = new DownloadEngine(dependencyManager);
         this.settingsService = new SettingsService();
-        this.queueManager = new QueueManager(engine, settingsService);
         this.metadataService = new MetadataService(dependencyManager);
+        this.queueManager = new QueueManager(engine, settingsService, metadataService);
 
-        setStyle("-fx-background-color: " + Theme.BG_BASE + ";");
+        setStyle("-fx-background-color: #121212;");
 
-        buildHeader();
-        buildCenter();
-        buildFooter();
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setTop(buildHeaderBar());
+        mainLayout.setCenter(buildCenterContent());
+
+        settingsOverlay = new SettingsOverlay(settingsService, dependencyManager, this::updateFolderPill);
+
+        getChildren().addAll(mainLayout, settingsOverlay);
 
         checkAndInitDependencies();
     }
 
-    private void buildHeader() {
-        VBox headerBox = new VBox(12);
-        headerBox.setPadding(new Insets(16, 20, 16, 20));
-        headerBox.setStyle("-fx-background-color: " + Theme.SURFACE_CARD + "; -fx-border-color: " + Theme.BORDER + "; -fx-border-width: 0 0 1px 0;");
+    private HBox buildHeaderBar() {
+        HBox header = new HBox(12);
+        header.getStyleClass().add("header-bar");
 
-        // Top Row: Title + Settings
-        HBox topRow = new HBox(12);
-        topRow.setAlignment(Pos.CENTER_LEFT);
+        // 1. Brand Button (Logo + App Title)
+        Button brandBtn = new Button("ytdownloader");
+        brandBtn.getStyleClass().add("brand-button");
+        brandBtn.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, Theme.COLOR_PRIMARY_RED, 1.0));
 
-        Label logoIcon = new Label();
-        logoIcon.setGraphic(LucideIcon.createIcon(LucideIcon.PLAY, Color.web(Theme.PRIMARY), 1.2));
+        // Separator
+        Line sep1 = new Line(0, 0, 0, 22);
+        sep1.getStyleClass().add("header-separator");
 
-        Label appTitle = new Label("YouTube Downloader");
-        appTitle.setStyle("-fx-text-fill: " + Theme.TEXT_PRIMARY + "; -fx-font-size: 18px; -fx-font-weight: bold;");
+        // 2. Tab Navigation Group
+        HBox tabGroup = new HBox(4);
+        tabGroup.getStyleClass().add("tab-button-group");
+
+        Button navDownloads = new Button("Downloads");
+        navDownloads.getStyleClass().addAll("nav-tab-button", "active");
+        navDownloads.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, Theme.COLOR_ICON_CYAN, 0.8));
+
+        Button navSettings = new Button("Einstellungen");
+        navSettings.getStyleClass().add("nav-tab-button");
+        navSettings.setGraphic(LucideIcon.createIcon(LucideIcon.SETTINGS, Theme.COLOR_ICON_AMBER, 0.8));
+        navSettings.setOnAction(e -> settingsOverlay.show());
+
+        tabGroup.getChildren().addAll(navDownloads, navSettings);
 
         HBox spacer = new HBox();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button settingsButton = new Button();
-        settingsButton.setGraphic(LucideIcon.createIcon(LucideIcon.SETTINGS, Color.web(Theme.TEXT_PRIMARY), 0.9));
-        settingsButton.getStyleClass().add("button-secondary");
-        settingsButton.setTooltip(new Tooltip("Einstellungen"));
-        settingsButton.setOnAction(e -> SettingsDialog.show(stage, settingsService, this::updateFooter));
+        // 3. Right Status Actions
+        // Folder Pill
+        Button folderBtn = new Button();
+        folderBtn.getStyleClass().add("custom-dropdown-btn");
+        folderBtn.setTooltip(new Tooltip("Download-Ordner öffnen"));
 
-        topRow.getChildren().addAll(logoIcon, appTitle, spacer, settingsButton);
+        HBox folderContent = new HBox(6);
+        folderContent.setAlignment(Pos.CENTER_LEFT);
+        folderLabel = new Label(getShortenedDownloadDir());
+        folderLabel.getStyleClass().add("custom-dropdown-label");
+        folderContent.getChildren().addAll(LucideIcon.createIcon(LucideIcon.FOLDER, Theme.COLOR_ICON_TEAL, 0.8), folderLabel);
+        folderBtn.setGraphic(folderContent);
+        folderBtn.setOnAction(e -> OSUtil.openInFileManager(Paths.get(settingsService.getSettings().getDownloadDirectory())));
 
-        // Dependency Banner (hidden by default)
-        dependencyBanner = new HBox(12);
-        dependencyBanner.setAlignment(Pos.CENTER_LEFT);
-        dependencyBanner.setPadding(new Insets(8, 12, 8, 12));
-        dependencyBanner.setStyle("-fx-background-color: " + Theme.SURFACE_ELEVATED + "; -fx-background-radius: 4px;");
-        dependencyBanner.setVisible(false);
-        dependencyBanner.setManaged(false);
+        // Traffic Pill (JDMX Style)
+        HBox trafficPill = new HBox(6);
+        trafficPill.getStyleClass().add("traffic-pill");
 
-        dependencyStatusLabel = new Label("Initialisiere yt-dlp...");
-        dependencyStatusLabel.setStyle("-fx-text-fill: " + Theme.TEXT_SECONDARY + "; -fx-font-size: 12px;");
+        trafficDot = new Circle(4);
+        trafficDot.setFill(Theme.COLOR_ICON_GREEN);
 
-        dependencyProgressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-        dependencyProgressBar.setPrefWidth(140);
-        dependencyProgressBar.setPrefHeight(6);
+        trafficStatusText = new Label("Bereit");
+        trafficStatusText.setStyle("-fx-text-fill: " + Theme.HEX_ICON_GREEN + "; -fx-font-size: 11px; -fx-font-weight: bold;");
 
-        dependencyBanner.getChildren().addAll(dependencyStatusLabel, dependencyProgressBar);
+        trafficPill.getChildren().addAll(trafficDot, trafficStatusText);
 
-        // URL Input Row
-        HBox inputRow = new HBox(10);
-        inputRow.setAlignment(Pos.CENTER_LEFT);
+        header.getChildren().addAll(brandBtn, sep1, tabGroup, spacer, folderBtn, trafficPill);
+        return header;
+    }
+
+    private VBox buildCenterContent() {
+        VBox center = new VBox(14);
+        center.setPadding(new Insets(16, 20, 16, 20));
+
+        // 1. Hero Input Dock
+        VBox heroDock = new VBox(10);
+        heroDock.getStyleClass().add("hero-input-dock");
+
+        // Search/URL Input Box
+        HBox searchBox = new HBox(8);
+        searchBox.getStyleClass().add("search-box");
+        HBox.setHgrow(searchBox, Priority.ALWAYS);
 
         urlField = new TextField();
-        urlField.setPromptText("YouTube-Video-URL einfügen (z. B. https://www.youtube.com/watch?v=...)");
+        urlField.setPromptText("YouTube-Link hier einfügen (z. B. https://www.youtube.com/watch?v=...)");
+        urlField.getStyleClass().add("search-field");
         HBox.setHgrow(urlField, Priority.ALWAYS);
-
-        // Listener für automatischen Metadaten-Fetch
         urlField.textProperty().addListener((obs, oldVal, newVal) -> handleUrlChanged(newVal));
 
         Button pasteBtn = new Button();
-        pasteBtn.setGraphic(LucideIcon.createIcon(LucideIcon.CLIPBOARD, Color.web(Theme.TEXT_PRIMARY), 0.8));
+        pasteBtn.setGraphic(LucideIcon.createIcon(LucideIcon.CLIPBOARD, Theme.COLOR_TEXT_MED, 0.8));
         pasteBtn.setTooltip(new Tooltip("Aus Zwischenablage einfügen"));
-        pasteBtn.getStyleClass().add("button-secondary");
+        pasteBtn.getStyleClass().add("btn-icon-action");
         pasteBtn.setOnAction(e -> {
             String clip = Clipboard.getSystemClipboard().getString();
             if (clip != null && !clip.isBlank()) {
@@ -151,89 +183,87 @@ public class MainWindow extends BorderPane {
             }
         });
 
+        searchBox.getChildren().addAll(LucideIcon.createIcon(LucideIcon.LINK, Theme.COLOR_TEXT_MED, 0.8), urlField, pasteBtn);
+
+        // Action & Format Row
+        HBox actionRow = new HBox(12);
+        actionRow.setAlignment(Pos.CENTER_LEFT);
+
         formatCombo = new ComboBox<>();
         formatCombo.getItems().addAll(DownloadFormat.values());
         formatCombo.setValue(settingsService.getSettings().getDefaultFormat());
 
+        HBox spacer = new HBox();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
         downloadButton = new Button("Herunterladen");
-        downloadButton.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, Color.WHITE, 0.9));
-        downloadButton.getStyleClass().add("button-primary");
+        downloadButton.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, javafx.scene.paint.Color.WHITE, 0.9));
+        downloadButton.getStyleClass().add("btn-primary-action");
         downloadButton.setOnAction(e -> onDownloadClicked());
 
-        inputRow.getChildren().addAll(urlField, pasteBtn, formatCombo, downloadButton);
+        actionRow.getChildren().addAll(formatCombo, spacer, downloadButton);
 
-        // Preview Card
-        buildPreviewCard();
+        // Preview Dock
+        buildPreviewDock();
 
-        headerBox.getChildren().addAll(topRow, dependencyBanner, inputRow, previewCard);
-        setTop(headerBox);
-    }
+        heroDock.getChildren().addAll(searchBox, actionRow, previewDock);
 
-    private void buildPreviewCard() {
-        previewCard = new HBox(16);
-        previewCard.setPadding(new Insets(10, 14, 10, 14));
-        previewCard.setAlignment(Pos.CENTER_LEFT);
-        previewCard.setStyle("-fx-background-color: " + Theme.SURFACE_ELEVATED + "; -fx-background-radius: 4px; " +
-                "-fx-border-color: " + Theme.BORDER + "; -fx-border-width: 1px; -fx-border-radius: 4px;");
-        previewCard.setVisible(false);
-        previewCard.setManaged(false);
+        // 2. Queue Section
+        VBox queueSection = new VBox(8);
+        VBox.setVgrow(queueSection, Priority.ALWAYS);
 
-        StackPane thumbPane = new StackPane();
-        thumbPane.setPrefSize(100, 56);
-        thumbPane.setMinSize(100, 56);
-        thumbPane.setMaxSize(100, 56);
-        thumbPane.setStyle("-fx-background-color: #000000; -fx-background-radius: 4px;");
+        // Section Title Header
+        HBox queueHeader = new HBox(8);
+        queueHeader.setAlignment(Pos.CENTER_LEFT);
+        queueHeader.setPadding(new Insets(6, 2, 6, 2));
 
-        previewThumbnail = new ImageView();
-        previewThumbnail.setFitWidth(100);
-        previewThumbnail.setFitHeight(56);
-        previewThumbnail.setPreserveRatio(true);
-        thumbPane.getChildren().add(previewThumbnail);
+        Label sectionLabel = new Label("WARTESCHLANGE");
+        sectionLabel.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px; -fx-font-weight: bold; -fx-letter-spacing: 1px;");
 
-        VBox previewInfo = new VBox(4);
-        HBox.setHgrow(previewInfo, Priority.ALWAYS);
+        queueCountLabel = new Label("0");
+        queueCountLabel.getStyleClass().add("format-badge");
 
-        previewTitle = new Label();
-        previewTitle.setStyle("-fx-text-fill: " + Theme.TEXT_PRIMARY + "; -fx-font-weight: bold; -fx-font-size: 13px;");
+        HBox spacer2 = new HBox();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
 
-        HBox subRow = new HBox(12);
-        previewChannel = new Label();
-        previewChannel.setStyle("-fx-text-fill: " + Theme.TEXT_SECONDARY + "; -fx-font-size: 11px;");
+        Button clearBtn = new Button("Erledigte leeren");
+        clearBtn.getStyleClass().add("btn-secondary");
+        clearBtn.setStyle("-fx-padding: 3 8; -fx-font-size: 11px;");
+        clearBtn.setOnAction(e -> {
+            queueManager.getTasks().removeIf(t -> t.getStatus().isTerminal());
+        });
 
-        previewDuration = new Label();
-        previewDuration.setStyle("-fx-text-fill: " + Theme.TEXT_MUTED + "; -fx-font-size: 11px;");
+        queueHeader.getChildren().addAll(sectionLabel, queueCountLabel, spacer2, clearBtn);
 
-        subRow.getChildren().addAll(previewChannel, previewDuration);
-        previewInfo.getChildren().addAll(previewTitle, subRow);
+        // Queue Items Container
+        queueContainer = new VBox(8);
 
-        previewCard.getChildren().addAll(thumbPane, previewInfo);
-    }
+        // Empty State (JDMX Style)
+        emptyStateBox = new VBox(10);
+        emptyStateBox.setAlignment(Pos.CENTER);
+        emptyStateBox.setPadding(new Insets(48, 0, 48, 0));
 
-    private void buildCenter() {
-        VBox centerBox = new VBox(12);
-        centerBox.setPadding(new Insets(16, 20, 16, 20));
+        Label emptyIcon = new Label();
+        emptyIcon.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, javafx.scene.paint.Color.web("#282828"), 2.4));
 
-        Label sectionTitle = new Label("Download-Warteschlange");
-        sectionTitle.setStyle("-fx-text-fill: " + Theme.TEXT_PRIMARY + "; -fx-font-size: 14px; -fx-font-weight: bold;");
+        Label emptyTitle = new Label("Keine aktiven Downloads");
+        emptyTitle.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 14px; -fx-font-weight: bold;");
 
-        queueContainer = new VBox(10);
+        Label emptySub = new Label("Füge oben einen YouTube-Link ein, um den Download zu starten.");
+        emptySub.setStyle("-fx-text-fill: #6B7280; -fx-font-size: 12px;");
 
-        emptyQueueLabel = new Label("Keine aktiven Downloads. Füge oben eine URL ein.");
-        emptyQueueLabel.setStyle("-fx-text-fill: " + Theme.TEXT_MUTED + "; -fx-font-size: 13px; -fx-padding: 30px 0 0 0;");
-        emptyQueueLabel.setAlignment(Pos.CENTER);
-        emptyQueueLabel.setMaxWidth(Double.MAX_VALUE);
-
-        queueContainer.getChildren().add(emptyQueueLabel);
+        emptyStateBox.getChildren().addAll(emptyIcon, emptyTitle, emptySub);
+        queueContainer.getChildren().add(emptyStateBox);
 
         ScrollPane scrollPane = new ScrollPane(queueContainer);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
-        centerBox.getChildren().addAll(sectionTitle, scrollPane);
-        setCenter(centerBox);
+        queueSection.getChildren().addAll(queueHeader, scrollPane);
 
-        // Queue Listener
+        center.getChildren().addAll(heroDock, queueSection);
+
+        // Listen for Queue changes
         queueManager.getTasks().addListener((ListChangeListener<DownloadTask>) c -> {
             while (c.next()) {
                 if (c.wasAdded()) {
@@ -252,69 +282,63 @@ public class MainWindow extends BorderPane {
                     }
                 }
             }
-            emptyQueueLabel.setVisible(queueManager.getTasks().isEmpty());
-            emptyQueueLabel.setManaged(queueManager.getTasks().isEmpty());
-            updateFooter();
+            boolean empty = queueManager.getTasks().isEmpty();
+            emptyStateBox.setVisible(empty);
+            emptyStateBox.setManaged(empty);
+            queueCountLabel.setText(String.valueOf(queueManager.getTasks().size()));
+            updateTelemetry();
         });
+
+        return center;
     }
 
-    private void buildFooter() {
-        HBox footer = new HBox(16);
-        footer.setPadding(new Insets(10, 20, 10, 20));
-        footer.setAlignment(Pos.CENTER_LEFT);
-        footer.setStyle("-fx-background-color: " + Theme.SURFACE_CARD + "; -fx-border-color: " + Theme.BORDER + "; -fx-border-width: 1px 0 0 0;");
+    private void buildPreviewDock() {
+        previewDock = new HBox(14);
+        previewDock.getStyleClass().add("preview-card");
+        previewDock.setAlignment(Pos.CENTER_LEFT);
+        previewDock.setVisible(false);
+        previewDock.setManaged(false);
 
-        footerStatusLabel = new Label("Bereit");
-        footerStatusLabel.setStyle("-fx-text-fill: " + Theme.TEXT_MUTED + "; -fx-font-size: 11px;");
+        // Thumbnail with Duration
+        StackPane thumbPane = new StackPane();
+        thumbPane.setPrefSize(110, 62);
+        thumbPane.setMinSize(110, 62);
+        thumbPane.setMaxSize(110, 62);
+        thumbPane.setStyle("-fx-background-color: #0A0A0A; -fx-background-radius: 4px; -fx-border-color: #2E2E2E; -fx-border-width: 1px; -fx-border-radius: 4px;");
 
-        HBox spacer = new HBox();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        previewThumbnail = new ImageView();
+        previewThumbnail.setFitWidth(110);
+        previewThumbnail.setFitHeight(62);
+        previewThumbnail.setPreserveRatio(true);
 
-        footerDirLabel = new Label("Ziel: " + settingsService.getSettings().getDownloadDirectory());
-        footerDirLabel.setStyle("-fx-text-fill: " + Theme.TEXT_MUTED + "; -fx-font-size: 11px;");
+        previewDuration = new Label();
+        previewDuration.getStyleClass().add("duration-pill");
+        StackPane.setAlignment(previewDuration, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(previewDuration, new Insets(0, 4, 4, 0));
 
-        footer.getChildren().addAll(footerStatusLabel, spacer, footerDirLabel);
-        setBottom(footer);
-    }
+        thumbPane.getChildren().addAll(previewThumbnail, previewDuration);
 
-    private void updateFooter() {
-        int count = queueManager.getTasks().size();
-        footerStatusLabel.setText(count == 0 ? "Bereit" : count + " Download" + (count > 1 ? "s" : "") + " in Liste");
-        footerDirLabel.setText("Ziel: " + settingsService.getSettings().getDownloadDirectory());
-    }
+        VBox infoBox = new VBox(4);
+        HBox.setHgrow(infoBox, Priority.ALWAYS);
 
-    private void checkAndInitDependencies() {
-        if (!dependencyManager.isYtDlpInstalled()) {
-            dependencyBanner.setVisible(true);
-            dependencyBanner.setManaged(true);
-            dependencyStatusLabel.setText("Lade yt-dlp automatisch herunter...");
+        previewTitle = new Label();
+        previewTitle.setStyle("-fx-text-fill: #F3F4F6; -fx-font-weight: bold; -fx-font-size: 13px;");
 
-            dependencyManager.ensureYtDlpAsync(pct -> Platform.runLater(() -> {
-                dependencyProgressBar.setProgress(pct / 100.0);
-                dependencyStatusLabel.setText(String.format("Lade yt-dlp herunter: %.0f%%", pct));
-            })).thenAccept(path -> Platform.runLater(() -> {
-                dependencyBanner.setVisible(false);
-                dependencyBanner.setManaged(false);
-                footerStatusLabel.setText("yt-dlp bereit");
-            })).exceptionally(ex -> {
-                Platform.runLater(() -> {
-                    dependencyStatusLabel.setText("Fehler: " + ex.getMessage());
-                    dependencyStatusLabel.setStyle("-fx-text-fill: " + Theme.ERROR + ";");
-                });
-                return null;
-            });
-        }
+        previewChannel = new Label();
+        previewChannel.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px;");
+
+        infoBox.getChildren().addAll(previewTitle, previewChannel);
+        previewDock.getChildren().addAll(thumbPane, infoBox);
     }
 
     private void handleUrlChanged(String url) {
         if (url == null || url.isBlank() || !url.contains("youtu")) {
-            previewCard.setVisible(false);
-            previewCard.setManaged(false);
+            previewDock.setVisible(false);
+            previewDock.setManaged(false);
             currentMetadata = null;
             return;
         }
 
-        // Asynchron Metadaten laden
         metadataService.fetchMetadataAsync(url.trim()).thenAccept(meta -> Platform.runLater(() -> {
             this.currentMetadata = meta;
             previewTitle.setText(meta.getTitle());
@@ -322,16 +346,16 @@ public class MainWindow extends BorderPane {
             previewDuration.setText(meta.getFormattedDuration());
 
             if (meta.getThumbnailUrl() != null && !meta.getThumbnailUrl().isBlank()) {
-                Image img = new Image(meta.getThumbnailUrl(), 100, 56, true, true, true);
+                Image img = new Image(meta.getThumbnailUrl(), 110, 62, true, true, true);
                 previewThumbnail.setImage(img);
             }
 
-            previewCard.setVisible(true);
-            previewCard.setManaged(true);
+            previewDock.setVisible(true);
+            previewDock.setManaged(true);
         })).exceptionally(ex -> {
             Platform.runLater(() -> {
-                previewCard.setVisible(false);
-                previewCard.setManaged(false);
+                previewDock.setVisible(false);
+                previewDock.setManaged(false);
             });
             return null;
         });
@@ -352,11 +376,42 @@ public class MainWindow extends BorderPane {
 
         queueManager.enqueue(task);
 
-        // URL-Feld leeren
         urlField.clear();
-        previewCard.setVisible(false);
-        previewCard.setManaged(false);
+        previewDock.setVisible(false);
+        previewDock.setManaged(false);
         currentMetadata = null;
+    }
+
+    private void updateTelemetry() {
+        long running = queueManager.getTasks().stream().filter(t -> t.getStatus().isActive()).count();
+        if (running > 0) {
+            trafficDot.setFill(Theme.COLOR_ICON_AMBER);
+            trafficStatusText.setText(running + " aktiv");
+            trafficStatusText.setStyle("-fx-text-fill: " + Theme.HEX_ICON_AMBER + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+        } else {
+            trafficDot.setFill(Theme.COLOR_ICON_GREEN);
+            trafficStatusText.setText("Bereit");
+            trafficStatusText.setStyle("-fx-text-fill: " + Theme.HEX_ICON_GREEN + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+        }
+    }
+
+    private void updateFolderPill() {
+        folderLabel.setText(getShortenedDownloadDir());
+    }
+
+    private String getShortenedDownloadDir() {
+        Path p = Paths.get(settingsService.getSettings().getDownloadDirectory());
+        return p.getFileName() != null ? p.getFileName().toString() : p.toString();
+    }
+
+    private void checkAndInitDependencies() {
+        if (!dependencyManager.isYtDlpInstalled()) {
+            trafficDot.setFill(Theme.COLOR_ICON_AMBER);
+            trafficStatusText.setText("Lädt yt-dlp...");
+            trafficStatusText.setStyle("-fx-text-fill: " + Theme.HEX_ICON_AMBER + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+            dependencyManager.ensureYtDlpAsync(null).thenAccept(path -> Platform.runLater(this::updateTelemetry));
+        }
     }
 
     public void cleanup() {

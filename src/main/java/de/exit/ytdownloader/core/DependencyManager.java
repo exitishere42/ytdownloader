@@ -38,31 +38,63 @@ public class DependencyManager {
     }
 
     /**
-     * Ermittelt den Pfad zur ausführbaren yt-dlp Datei.
-     * Prüft zuerst den lokalen App-Bin-Ordner, danach den System-PATH.
+     * Prüft, ob eine Datei existiert und als yt-dlp ausführbar ist (prüft --version).
+     */
+    public boolean isExecutableValid(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return false;
+        }
+        if (!OSUtil.isWindows() && !Files.isExecutable(path)) {
+            return false;
+        }
+        try {
+            Process process = new ProcessBuilder(path.toAbsolutePath().toString(), "--version")
+                    .redirectErrorStream(true)
+                    .start();
+
+            boolean finished = process.waitFor(4, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return false;
+            }
+            if (process.exitValue() != 0) {
+                return false;
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = reader.readLine();
+                return line != null && !line.isBlank();
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Ermittelt den Pfad zur funktionierenden yt-dlp Datei.
+     * Priorisiert stets den anwendungseigenen Bin-Ordner und validiert System-Kandidaten.
      */
     public Path findYtDlp() {
         String binaryName = OSUtil.isWindows() ? "yt-dlp.exe" : "yt-dlp";
         Path localBinary = binDir.resolve(binaryName);
-        if (Files.isExecutable(localBinary) || (OSUtil.isWindows() && Files.exists(localBinary))) {
+        if (isExecutableValid(localBinary)) {
             return localBinary;
         }
 
         Path pathBinary = findInSystemPath(binaryName);
-        if (pathBinary != null) {
+        if (pathBinary != null && isExecutableValid(pathBinary)) {
             return pathBinary;
         }
 
-        return localBinary; // Rückgabe des Zielpfads für späteren Download
+        return localBinary; // Zielpfad für Download
     }
 
     public boolean isYtDlpInstalled() {
         Path path = findYtDlp();
-        return Files.exists(path) && (OSUtil.isWindows() || Files.isExecutable(path));
+        return isExecutableValid(path);
     }
 
     /**
-     * Sucht eine Binärdatei im System-PATH.
+     * Sucht eine funktionierende Binärdatei im System-PATH.
      */
     public Path findInSystemPath(String binaryName) {
         String pathEnv = System.getenv("PATH");
@@ -74,7 +106,7 @@ public class DependencyManager {
         for (String part : parts) {
             try {
                 Path candidate = Path.of(part, binaryName);
-                if (Files.exists(candidate) && (OSUtil.isWindows() || Files.isExecutable(candidate))) {
+                if (Files.exists(candidate) && isExecutableValid(candidate)) {
                     return candidate;
                 }
             } catch (Exception ignored) {
@@ -84,12 +116,12 @@ public class DependencyManager {
     }
 
     /**
-     * Lädt yt-dlp asynchron herunter, falls es noch nicht existiert.
+     * Lädt yt-dlp asynchron herunter, falls es noch nicht existiert oder defekt ist.
      */
     public CompletableFuture<Path> ensureYtDlpAsync(Consumer<Double> progressConsumer) {
         return CompletableFuture.supplyAsync(() -> {
             Path binary = findYtDlp();
-            if (Files.exists(binary)) {
+            if (isExecutableValid(binary)) {
                 if (progressConsumer != null) {
                     progressConsumer.accept(100.0);
                 }
@@ -97,16 +129,24 @@ public class DependencyManager {
             }
 
             String downloadUrl = OSUtil.isWindows() ? YT_DLP_WIN_URL : YT_DLP_LINUX_URL;
+            String binaryName = OSUtil.isWindows() ? "yt-dlp.exe" : "yt-dlp";
+            Path targetBinary = binDir.resolve(binaryName);
+
             try {
-                downloadFileWithRedirects(downloadUrl, binary, progressConsumer);
+                downloadFileWithRedirects(downloadUrl, targetBinary, progressConsumer);
 
                 // Unter Linux Ausführungsrechte setzen
                 if (!OSUtil.isWindows()) {
-                    File file = binary.toFile();
+                    File file = targetBinary.toFile();
                     file.setExecutable(true, false);
                     file.setReadable(true, false);
                 }
-                return binary;
+
+                if (!isExecutableValid(targetBinary)) {
+                    throw new IOException("Heruntergeladene yt-dlp Datei konnte nicht validiert werden.");
+                }
+
+                return targetBinary;
             } catch (IOException e) {
                 throw new RuntimeException("Fehler beim Herunterladen von yt-dlp: " + e.getMessage(), e);
             }

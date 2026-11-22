@@ -3,6 +3,7 @@ package de.exit.ytdownloader.core;
 import de.exit.ytdownloader.model.AppSettings;
 import de.exit.ytdownloader.model.DownloadStatus;
 import de.exit.ytdownloader.model.DownloadTask;
+import de.exit.ytdownloader.service.MetadataService;
 import de.exit.ytdownloader.service.SettingsService;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -17,12 +18,14 @@ public class QueueManager {
 
     private final DownloadEngine engine;
     private final SettingsService settingsService;
+    private final MetadataService metadataService;
     private final ObservableList<DownloadTask> tasks;
     private final ExecutorService executor;
 
-    public QueueManager(DownloadEngine engine, SettingsService settingsService) {
+    public QueueManager(DownloadEngine engine, SettingsService settingsService, MetadataService metadataService) {
         this.engine = engine;
         this.settingsService = settingsService;
+        this.metadataService = metadataService;
         this.tasks = FXCollections.observableArrayList();
         this.executor = Executors.newFixedThreadPool(4);
     }
@@ -66,9 +69,20 @@ public class QueueManager {
 
     private void startTask(DownloadTask task) {
         Path outputDir = Paths.get(settingsService.getSettings().getDownloadDirectory());
-        engine.executeDownloadAsync(task, outputDir).whenComplete((res, ex) -> {
-            Platform.runLater(this::processQueue);
-        });
+        if (metadataService != null && (task.getTitle().equals(task.getUrl()) || task.getThumbnailUrl() == null)) {
+            task.setStatus(DownloadStatus.FETCHING);
+            metadataService.fetchMetadataAsync(task.getUrl()).thenAccept(meta -> {
+                Platform.runLater(() -> task.setMetadata(meta));
+            }).whenComplete((r, ex) -> {
+                engine.executeDownloadAsync(task, outputDir).whenComplete((res, err) -> {
+                    Platform.runLater(this::processQueue);
+                });
+            });
+        } else {
+            engine.executeDownloadAsync(task, outputDir).whenComplete((res, ex) -> {
+                Platform.runLater(this::processQueue);
+            });
+        }
     }
 
     public synchronized void cancelTask(DownloadTask task) {

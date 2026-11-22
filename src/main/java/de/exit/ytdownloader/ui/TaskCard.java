@@ -18,7 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 
 public class TaskCard extends HBox {
 
@@ -26,6 +25,7 @@ public class TaskCard extends HBox {
     private final QueueManager queueManager;
 
     private final ImageView thumbnailView;
+    private final Label durationPill;
     private final Label titleLabel;
     private final Label channelLabel;
     private final Label statusLabel;
@@ -39,74 +39,83 @@ public class TaskCard extends HBox {
         this.task = task;
         this.queueManager = queueManager;
 
-        setSpacing(16);
-        setPadding(new Insets(12, 16, 12, 16));
-        setAlignment(Pos.CENTER_LEFT);
-        getStyleClass().add("surface-card");
-        setStyle("-fx-background-color: " + Theme.SURFACE_CARD + "; -fx-background-radius: 4px; " +
-                "-fx-border-color: " + Theme.BORDER + "; -fx-border-width: 1px; -fx-border-radius: 4px;");
+        getStyleClass().add("task-card");
 
-        // 1. Thumbnail Container
+        // 1. Thumbnail Container (110x62)
         StackPane thumbPane = new StackPane();
-        thumbPane.setPrefSize(120, 68);
-        thumbPane.setMinSize(120, 68);
-        thumbPane.setMaxSize(120, 68);
-        thumbPane.setStyle("-fx-background-color: #0F0F0F; -fx-background-radius: 4px;");
+        thumbPane.setPrefSize(110, 62);
+        thumbPane.setMinSize(110, 62);
+        thumbPane.setMaxSize(110, 62);
+        thumbPane.setStyle("-fx-background-color: #0A0A0A; -fx-background-radius: 4px; -fx-border-color: #2E2E2E; -fx-border-width: 1px; -fx-border-radius: 4px;");
 
         thumbnailView = new ImageView();
-        thumbnailView.setFitWidth(120);
-        thumbnailView.setFitHeight(68);
+        thumbnailView.setFitWidth(110);
+        thumbnailView.setFitHeight(62);
         thumbnailView.setPreserveRatio(true);
-        thumbPane.getChildren().add(thumbnailView);
+
+        durationPill = new Label();
+        durationPill.getStyleClass().add("duration-pill");
+        durationPill.setVisible(false);
+        StackPane.setAlignment(durationPill, Pos.BOTTOM_RIGHT);
+        StackPane.setMargin(durationPill, new Insets(0, 4, 4, 0));
+
+        thumbPane.getChildren().addAll(thumbnailView, durationPill);
 
         if (task.getThumbnailUrl() != null && !task.getThumbnailUrl().isBlank()) {
             loadThumbnailAsync(task.getThumbnailUrl());
         }
 
-        // 2. Info & Progress Center
-        VBox infoBox = new VBox(6);
+        // 2. Info Center
+        VBox infoBox = new VBox(5);
         HBox.setHgrow(infoBox, Priority.ALWAYS);
 
         HBox titleRow = new HBox(8);
         titleRow.setAlignment(Pos.CENTER_LEFT);
 
         titleLabel = new Label(task.getTitle());
-        titleLabel.setStyle("-fx-text-fill: " + Theme.TEXT_PRIMARY + "; -fx-font-weight: bold; -fx-font-size: 14px;");
-        titleLabel.setMaxWidth(500);
+        titleLabel.setStyle("-fx-text-fill: #F3F4F6; -fx-font-weight: bold; -fx-font-size: 13px;");
+        titleLabel.setMaxWidth(480);
 
         Label formatBadge = new Label(task.getFormat().getDisplayName());
-        formatBadge.setStyle("-fx-background-color: " + Theme.PRIMARY_CONTAINER + "; -fx-text-fill: " +
-                Theme.PRIMARY_CONTAINER_TEXT + "; -fx-background-radius: 4px; -fx-padding: 2px 8px; -fx-font-size: 11px; -fx-font-weight: bold;");
+        formatBadge.getStyleClass().addAll("format-badge", "accent");
 
         titleRow.getChildren().addAll(titleLabel, formatBadge);
 
+        // Channel & Status Row
+        HBox metaRow = new HBox(10);
+        metaRow.setAlignment(Pos.CENTER_LEFT);
+
         channelLabel = new Label(task.getChannel());
-        channelLabel.setStyle("-fx-text-fill: " + Theme.TEXT_SECONDARY + "; -fx-font-size: 12px;");
+        channelLabel.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px;");
+
+        statusLabel = new Label(task.getStatus().getDisplayName());
+        statusLabel.setStyle("-fx-text-fill: " + getStatusColorHex(task.getStatus()) + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        metaRow.getChildren().addAll(channelLabel, statusLabel);
 
         // Progress Bar
         progressBar = new ProgressBar(task.getProgress() / 100.0);
         progressBar.setMaxWidth(Double.MAX_VALUE);
-        progressBar.setPrefHeight(6);
 
-        // Status & Stats Row
-        HBox statsRow = new HBox(12);
-        statusLabel = new Label(task.getStatus().getDisplayName());
-        statusLabel.setStyle("-fx-text-fill: " + getStatusColor(task.getStatus()) + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+        // Telemetry Row
+        HBox telemetryRow = new HBox(12);
+        telemetryRow.setAlignment(Pos.CENTER_LEFT);
 
         speedEtaLabel = new Label();
-        speedEtaLabel.setStyle("-fx-text-fill: " + Theme.TEXT_MUTED + "; -fx-font-size: 12px;");
+        speedEtaLabel.setStyle("-fx-text-fill: #6B7280; -fx-font-size: 11px;");
 
-        statsRow.getChildren().addAll(statusLabel, speedEtaLabel);
-        infoBox.getChildren().addAll(titleRow, channelLabel, progressBar, statsRow);
+        telemetryRow.getChildren().add(speedEtaLabel);
 
-        // 3. Actions Right
-        HBox actionBox = new HBox(8);
+        infoBox.getChildren().addAll(titleRow, metaRow, progressBar, telemetryRow);
+
+        // 3. Right Action Buttons
+        HBox actionBox = new HBox(6);
         actionBox.setAlignment(Pos.CENTER_RIGHT);
 
         openFolderButton = new Button();
-        openFolderButton.setGraphic(LucideIcon.createIcon(LucideIcon.FOLDER, Color.web(Theme.TEXT_PRIMARY), 0.8));
+        openFolderButton.setGraphic(LucideIcon.createIcon(LucideIcon.FOLDER, Theme.COLOR_ICON_TEAL, 0.8));
         openFolderButton.setTooltip(new Tooltip("Im Ordner anzeigen"));
-        openFolderButton.getStyleClass().add("button-secondary");
+        openFolderButton.getStyleClass().add("btn-icon-action");
         openFolderButton.setOnAction(e -> {
             if (task.getOutputPath() != null) {
                 OSUtil.openInFileManager(task.getOutputPath());
@@ -114,22 +123,21 @@ public class TaskCard extends HBox {
         });
 
         cancelButton = new Button();
-        cancelButton.setGraphic(LucideIcon.createIcon(LucideIcon.CANCEL, Color.web(Theme.ERROR), 0.8));
-        cancelButton.setTooltip(new Tooltip("Abbrechen"));
-        cancelButton.getStyleClass().add("button-secondary");
+        cancelButton.setGraphic(LucideIcon.createIcon(LucideIcon.CANCEL, Theme.COLOR_ICON_RED, 0.8));
+        cancelButton.setTooltip(new Tooltip("Download abbrechen"));
+        cancelButton.getStyleClass().addAll("btn-icon-action", "danger");
         cancelButton.setOnAction(e -> queueManager.cancelTask(task));
 
         removeButton = new Button();
-        removeButton.setGraphic(LucideIcon.createIcon(LucideIcon.TRASH, Color.web(Theme.TEXT_MUTED), 0.8));
+        removeButton.setGraphic(LucideIcon.createIcon(LucideIcon.TRASH, Theme.COLOR_TEXT_MED, 0.8));
         removeButton.setTooltip(new Tooltip("Aus Liste entfernen"));
-        removeButton.getStyleClass().add("button-secondary");
+        removeButton.getStyleClass().add("btn-icon-action");
         removeButton.setOnAction(e -> queueManager.removeTask(task));
 
         actionBox.getChildren().addAll(openFolderButton, cancelButton, removeButton);
 
         getChildren().addAll(thumbPane, infoBox, actionBox);
 
-        // Task-Listener registrieren
         task.setChangeListener(t -> Platform.runLater(this::updateView));
         updateView();
     }
@@ -140,7 +148,15 @@ public class TaskCard extends HBox {
         progressBar.setProgress(task.getProgress() / 100.0);
 
         statusLabel.setText(task.getStatus().getDisplayName());
-        statusLabel.setStyle("-fx-text-fill: " + getStatusColor(task.getStatus()) + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+        statusLabel.setStyle("-fx-text-fill: " + getStatusColorHex(task.getStatus()) + "; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+        if (task.getDurationSeconds() > 0) {
+            long m = (task.getDurationSeconds() % 3600) / 60;
+            long s = task.getDurationSeconds() % 60;
+            long h = task.getDurationSeconds() / 3600;
+            durationPill.setText(h > 0 ? String.format("%d:%02d:%02d", h, m, s) : String.format("%02d:%02d", m, s));
+            durationPill.setVisible(true);
+        }
 
         if (task.getStatus() == DownloadStatus.DOWNLOADING) {
             String stats = "";
@@ -148,18 +164,21 @@ public class TaskCard extends HBox {
                 stats += task.getSpeed();
             }
             if (task.getEta() != null && !task.getEta().isBlank()) {
-                stats += (stats.isEmpty() ? "" : " • ") + "ETA: " + task.getEta();
+                stats += (stats.isEmpty() ? "" : "  •  ") + "ETA " + task.getEta();
             }
-            stats += String.format(" (%.1f%%)", task.getProgress());
+            stats += String.format("  •  %.1f%%", task.getProgress());
             speedEtaLabel.setText(stats);
+            speedEtaLabel.setStyle("-fx-text-fill: #9CA3AF; -fx-font-size: 11px;");
         } else if (task.getStatus() == DownloadStatus.FAILED) {
-            speedEtaLabel.setText(task.getErrorMessage() != null ? task.getErrorMessage() : "");
-            speedEtaLabel.setStyle("-fx-text-fill: " + Theme.ERROR + "; -fx-font-size: 12px;");
+            speedEtaLabel.setText(task.getErrorMessage() != null ? task.getErrorMessage() : "Download fehlgeschlagen");
+            speedEtaLabel.setStyle("-fx-text-fill: " + Theme.HEX_ICON_RED + "; -fx-font-size: 11px;");
+        } else if (task.getStatus() == DownloadStatus.COMPLETED) {
+            speedEtaLabel.setText("Abgeschlossen");
+            speedEtaLabel.setStyle("-fx-text-fill: " + Theme.HEX_ICON_GREEN + "; -fx-font-size: 11px;");
         } else {
             speedEtaLabel.setText("");
         }
 
-        // Button States
         openFolderButton.setVisible(task.getStatus() == DownloadStatus.COMPLETED);
         openFolderButton.setManaged(task.getStatus() == DownloadStatus.COMPLETED);
 
@@ -176,7 +195,7 @@ public class TaskCard extends HBox {
 
     private void loadThumbnailAsync(String url) {
         try {
-            Image img = new Image(url, 120, 68, true, true, true);
+            Image img = new Image(url, 110, 62, true, true, true);
             img.progressProperty().addListener((obs, oldV, newV) -> {
                 if (newV.doubleValue() >= 1.0 && !img.isError()) {
                     Platform.runLater(() -> thumbnailView.setImage(img));
@@ -186,13 +205,14 @@ public class TaskCard extends HBox {
         }
     }
 
-    private String getStatusColor(DownloadStatus status) {
+    private String getStatusColorHex(DownloadStatus status) {
         return switch (status) {
-            case COMPLETED -> Theme.SUCCESS;
-            case DOWNLOADING, CONVERTING -> Theme.PRIMARY;
-            case FAILED -> Theme.ERROR;
-            case CANCELLED -> Theme.TEXT_MUTED;
-            default -> Theme.TEXT_SECONDARY;
+            case COMPLETED -> Theme.HEX_ICON_GREEN;
+            case DOWNLOADING, CONVERTING -> Theme.HEX_ICON_CYAN;
+            case FAILED -> Theme.HEX_ICON_RED;
+            case CANCELLED -> Theme.HEX_TEXT_LOW;
+            case FETCHING -> Theme.HEX_ICON_AMBER;
+            default -> Theme.HEX_TEXT_MED;
         };
     }
 }
