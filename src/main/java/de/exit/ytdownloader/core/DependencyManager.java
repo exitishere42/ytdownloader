@@ -13,6 +13,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -91,6 +93,120 @@ public class DependencyManager {
     public boolean isYtDlpInstalled() {
         Path path = findYtDlp();
         return isExecutableValid(path);
+    }
+
+    /**
+     * Prüft, ob eine Datei existiert und als ffmpeg ausführbar ist (prüft -version).
+     */
+    public boolean isFfmpegValid(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return false;
+        }
+        if (!OSUtil.isWindows() && !Files.isExecutable(path)) {
+            return false;
+        }
+        try {
+            Process process = new ProcessBuilder(path.toAbsolutePath().toString(), "-version")
+                    .redirectErrorStream(true)
+                    .start();
+
+            boolean finished = process.waitFor(4, java.util.concurrent.TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return false;
+            }
+            if (process.exitValue() != 0) {
+                return false;
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = reader.readLine();
+                return line != null && line.toLowerCase().contains("ffmpeg");
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Sucht eine funktionierende FFmpeg-Installation.
+     * Priorisiert anwendungseigenes Verzeichnis, System-PATH und bekannte Standardpfade.
+     */
+    public Path findFfmpeg() {
+        String binaryName = OSUtil.isWindows() ? "ffmpeg.exe" : "ffmpeg";
+
+        // 1. Lokales bin-Verzeichnis
+        Path localBinary = binDir.resolve(binaryName);
+        if (isFfmpegValid(localBinary)) {
+            return localBinary;
+        }
+
+        // 2. System-PATH
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null && !pathEnv.isBlank()) {
+            String[] parts = pathEnv.split(File.pathSeparator);
+            for (String part : parts) {
+                try {
+                    Path candidate = Path.of(part, binaryName);
+                    if (Files.exists(candidate) && isFfmpegValid(candidate)) {
+                        return candidate;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        // 3. Bekannte Standardpfade
+        if (OSUtil.isWindows()) {
+            List<Path> candidates = new ArrayList<>();
+            candidates.add(Path.of("C:\\ffmpeg\\bin\\ffmpeg.exe"));
+            candidates.add(Path.of("C:\\ffpmeg\\bin\\ffmpeg.exe"));
+
+            String progFiles = System.getenv("ProgramFiles");
+            if (progFiles != null) {
+                candidates.add(Path.of(progFiles, "ffmpeg", "bin", "ffmpeg.exe"));
+            }
+            String localAppData = System.getenv("LOCALAPPDATA");
+            if (localAppData != null) {
+                candidates.add(Path.of(localAppData, "Microsoft", "WinGet", "Links", "ffmpeg.exe"));
+
+                // Suche in WinGet-Paketen
+                Path wingetPackages = Path.of(localAppData, "Microsoft", "WinGet", "Packages");
+                if (Files.exists(wingetPackages)) {
+                    try (var stream = Files.walk(wingetPackages, 4)) {
+                        var found = stream.filter(p -> p.getFileName().toString().equalsIgnoreCase("ffmpeg.exe") && isFfmpegValid(p)).findFirst();
+                        if (found.isPresent()) {
+                            return found.get();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            for (Path candidate : candidates) {
+                if (isFfmpegValid(candidate)) {
+                    return candidate;
+                }
+            }
+        } else {
+            // Standard-Pfade unter Linux
+            Path[] linuxPaths = new Path[]{
+                    Path.of("/usr/bin/ffmpeg"),
+                    Path.of("/usr/local/bin/ffmpeg"),
+                    Path.of("/bin/ffmpeg"),
+                    Path.of("/snap/bin/ffmpeg")
+            };
+            for (Path candidate : linuxPaths) {
+                if (isFfmpegValid(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public boolean isFfmpegInstalled() {
+        return findFfmpeg() != null;
     }
 
     /**

@@ -50,9 +50,9 @@ curl -fsSL https://github.com/exitishere42/ytdownloader/releases/latest/download
 Download and run [`install.bat`](https://github.com/exitishere42/ytdownloader/releases/latest/download/install.bat) from the [latest release](https://github.com/exitishere42/ytdownloader/releases/latest).
 
 ### Standalone Fat-JAR (Manual)
-Download `ytdownloader-1.1.0-all.jar` from [Releases](https://github.com/exitishere42/ytdownloader/releases/latest) and run:
+Download `ytdownloader-1.1.1-all.jar` from [Releases](https://github.com/exitishere42/ytdownloader/releases/latest) and run:
 ```bash
-java -jar ytdownloader-1.1.0-all.jar
+java -jar ytdownloader-1.1.1-all.jar
 ```
 
 ### Uninstall
@@ -90,7 +90,7 @@ mvn clean package
 
 The standalone fat JAR is generated at:
 ```bash
-target/ytdownloader-1.1.0-all.jar
+target/ytdownloader-1.1.1-all.jar
 ```
 
 ---

@@ -10,7 +10,7 @@ set -e
 REPO="exitishere42/ytdownloader"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/ytdownloader}"
 APP_NAME="ytdownloader"
-JAR_NAME="ytdownloader-1.1.0-all.jar"
+JAR_NAME="ytdownloader-1.1.1-all.jar"
 
 DETECTED_JAR=$(curl -fsSL -H "User-Agent: Mozilla/5.0" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -o '"name": *"ytdownloader-[^"]*-all\.jar"' | head -n 1 | cut -d '"' -f 4 || true)
 if [ -n "$DETECTED_JAR" ]; then
@@ -70,7 +70,35 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 2. Programmdateien in Zielordner herunterladen
+# 2. Prüfen und Installieren von FFmpeg (erforderlich für MP3 und Merging)
+# ------------------------------------------------------------------------------
+if command -v ffmpeg &> /dev/null; then
+    FFMPEG_VER_STR=$(ffmpeg -version 2>&1 | head -n 1)
+    echo "[OK] FFmpeg bereits installiert ($FFMPEG_VER_STR)."
+else
+    echo "[*] FFmpeg wurde nicht gefunden. Installiere FFmpeg..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update -y
+        sudo apt-get install -y ffmpeg
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y ffmpeg
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -Sy --noconfirm ffmpeg
+    elif command -v zypper &> /dev/null; then
+        sudo zypper install -y ffmpeg
+    else
+        echo "[!] Paketmanager nicht erkannt. Bitte FFmpeg manuell installieren (z. B. 'sudo apt install ffmpeg')."
+    fi
+
+    if command -v ffmpeg &> /dev/null; then
+        echo "[OK] FFmpeg erfolgreich installiert."
+    else
+        echo "[!] Warnung: FFmpeg konnte nicht automatisch installiert werden."
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# 3. Programmdateien in Zielordner herunterladen
 # ------------------------------------------------------------------------------
 echo "[*] Erstelle Programmordner: $INSTALL_DIR"
 mkdir -p "$INSTALL_DIR"
@@ -112,7 +140,7 @@ EOF
 chmod +x "$INSTALL_DIR/run.sh"
 
 # ------------------------------------------------------------------------------
-# 3. Desktop-Entry & Icon für das App-Dash / Anwendungsmenü einrichten
+# 4. Desktop-Entry & Icon für das App-Dash / Anwendungsmenü einrichten
 # ------------------------------------------------------------------------------
 echo "[*] Richte Desktop-Entry und App-Logo für das Dash ein..."
 ICON_DIR_PNG="$HOME/.local/share/icons/hicolor/256x256/apps"

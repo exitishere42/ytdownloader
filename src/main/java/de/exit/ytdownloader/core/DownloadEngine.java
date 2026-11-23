@@ -24,6 +24,13 @@ public class DownloadEngine {
 
     public CompletableFuture<Void> executeDownloadAsync(DownloadTask task, Path outputDirectory) {
         return CompletableFuture.runAsync(() -> {
+            DownloadFormat format = task.getFormat();
+            if (format.isAudioOnly() && !dependencyManager.isFfmpegInstalled()) {
+                task.setStatus(DownloadStatus.FAILED);
+                task.setErrorMessage("FFmpeg nicht gefunden! Für Audio-Konvertierung (MP3) wird FFmpeg benötigt. Bitte installieren Sie FFmpeg (z. B. via 'install.sh' / 'install.bat' oder 'sudo apt install ffmpeg').");
+                return;
+            }
+
             Path ytDlp = dependencyManager.findYtDlp();
             if (!dependencyManager.isYtDlpInstalled()) {
                 try {
@@ -54,7 +61,12 @@ public class DownloadEngine {
                 command.add(outputTemplate);
 
                 // Format-Argumente
-                DownloadFormat format = task.getFormat();
+                Path ffmpegPath = dependencyManager.findFfmpeg();
+                if (ffmpegPath != null) {
+                    command.add("--ffmpeg-location");
+                    command.add(ffmpegPath.toAbsolutePath().toString());
+                }
+
                 command.addAll(format.buildYtDlpArguments());
 
                 // URL
@@ -67,11 +79,21 @@ public class DownloadEngine {
                 task.setProcess(process);
 
                 Path resolvedOutputFile = null;
+                List<String> outputLines = new ArrayList<>();
+                List<String> errorLines = new ArrayList<>();
 
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         String trimmed = line.trim();
+                        if (trimmed.isEmpty()) {
+                            continue;
+                        }
+
+                        outputLines.add(trimmed);
+                        if (trimmed.startsWith("ERROR:") || trimmed.toLowerCase().contains("error:") || trimmed.startsWith("[download] Got error:")) {
+                            errorLines.add(trimmed);
+                        }
 
                         // Dateinamen erfassen
                         if (trimmed.startsWith("[download] Destination: ")) {
@@ -110,7 +132,16 @@ public class DownloadEngine {
                     }
                 } else {
                     task.setStatus(DownloadStatus.FAILED);
-                    task.setErrorMessage("Download fehlgeschlagen (Exit-Code: " + exitCode + ")");
+                    String detail;
+                    if (!errorLines.isEmpty()) {
+                        detail = String.join(" | ", errorLines);
+                    } else if (!outputLines.isEmpty()) {
+                        int start = Math.max(0, outputLines.size() - 3);
+                        detail = String.join(" | ", outputLines.subList(start, outputLines.size()));
+                    } else {
+                        detail = "Exit-Code: " + exitCode;
+                    }
+                    task.setErrorMessage("Download fehlgeschlagen (Exit-Code " + exitCode + "): " + detail);
                 }
             } catch (InterruptedException e) {
                 task.cancel();

@@ -32,4 +32,21 @@ class DependencyManagerDownloadTest {
         assertNotNull(version, "Version must not be null");
         assertFalse(version.isBlank(), "Version must not be blank");
     }
+
+    @Test
+    void testFfmpegValidationRejectsBrokenPath() {
+        DependencyManager manager = new DependencyManager();
+        assertFalse(manager.isFfmpegValid(Path.of("invalid_ffmpeg_path_98765.exe")));
+    }
+
+    @Test
+    void testFindFfmpeg() {
+        DependencyManager manager = new DependencyManager();
+        Path ffmpeg = manager.findFfmpeg();
+        System.out.println("findFfmpeg: " + ffmpeg + " isInstalled: " + manager.isFfmpegInstalled());
+        if (ffmpeg != null) {
+            assertTrue(Files.exists(ffmpeg));
+            assertTrue(manager.isFfmpegValid(ffmpeg));
+        }
+    }
 }

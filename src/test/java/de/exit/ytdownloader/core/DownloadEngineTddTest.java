@@ -66,7 +66,7 @@ class DownloadEngineTddTest {
 
         engine.executeDownloadAsync(task, tempDir).get(45, TimeUnit.SECONDS);
 
-        assertEquals(DownloadStatus.COMPLETED, task.getStatus(), "Task status must be COMPLETED");
+        assertEquals(DownloadStatus.COMPLETED, task.getStatus(), "Task status must be COMPLETED, error: " + task.getErrorMessage());
         assertEquals(100.0, task.getProgress(), 0.1, "Progress must reach 100%");
         assertNotNull(task.getOutputPath(), "Output path must be set");
         assertTrue(Files.exists(task.getOutputPath()), "Output file must exist on disk");
@@ -83,10 +83,34 @@ class DownloadEngineTddTest {
 
         engine.executeDownloadAsync(task, tempDir).get(45, TimeUnit.SECONDS);
 
-        assertEquals(DownloadStatus.COMPLETED, task.getStatus(), "Task status must be COMPLETED");
+        assertEquals(DownloadStatus.COMPLETED, task.getStatus(), "Task status must be COMPLETED, error: " + task.getErrorMessage());
         assertNotNull(task.getOutputPath(), "Output path must be set");
         assertTrue(Files.exists(task.getOutputPath()), "Output file must exist on disk");
         assertTrue(task.getOutputPath().toString().endsWith(".mp3"), "File extension must be .mp3");
         assertTrue(Files.size(task.getOutputPath()) > 20_000, "Audio file must be larger than 20 KB");
+    }
+
+    @Test
+    void testDownloadEngineRejectsMp3WhenFfmpegMissing(@TempDir Path tempDir) throws Exception {
+        DependencyManager mockManager = new DependencyManager() {
+            @Override
+            public boolean isFfmpegInstalled() {
+                return false;
+            }
+
+            @Override
+            public Path findFfmpeg() {
+                return null;
+            }
+        };
+
+        DownloadEngine engine = new DownloadEngine(mockManager);
+        DownloadTask task = new DownloadTask("https://www.youtube.com/watch?v=jNQXAC9IVRw", DownloadFormat.MP3);
+
+        engine.executeDownloadAsync(task, tempDir).get(5, TimeUnit.SECONDS);
+
+        assertEquals(DownloadStatus.FAILED, task.getStatus());
+        assertNotNull(task.getErrorMessage());
+        assertTrue(task.getErrorMessage().contains("FFmpeg nicht gefunden"), "Error message must guide user about missing FFmpeg");
     }
 }

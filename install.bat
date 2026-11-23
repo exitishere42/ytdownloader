@@ -4,7 +4,7 @@ chcp 65001 >nul 2>&1
 
 set "REPO=exitishere42/ytdownloader"
 set "INSTALL_DIR=%USERPROFILE%\ytdownloader"
-set "JAR_NAME=ytdownloader-1.1.0-all.jar"
+set "JAR_NAME=ytdownloader-1.1.1-all.jar"
 set "RELEASE_URL=https://github.com/%REPO%/releases/latest/download"
 set "RAW_URL=https://raw.githubusercontent.com/%REPO%/main"
 
@@ -38,7 +38,31 @@ if "%JAVA_OK%"=="1" (
 )
 
 :: ------------------------------------------------------------------------------
-:: 2. Programmdateien nach %USERPROFILE%\ytdownloader herunterladen
+:: 2. Pruefen ob FFmpeg installiert ist (erforderlich fuer MP3 & Merging)
+:: ------------------------------------------------------------------------------
+set "FFMPEG_OK=0"
+where ffmpeg >nul 2>&1
+if not errorlevel 1 set "FFMPEG_OK=1"
+
+if "%FFMPEG_OK%"=="1" (
+    echo [OK] FFmpeg ist bereits installiert.
+) else (
+    echo [*] FFmpeg nicht gefunden. Installiere FFmpeg via winget...
+    where winget >nul 2>&1
+    if not errorlevel 1 (
+        winget install --id Gyan.FFmpeg -e --accept-source-agreements --accept-package-agreements
+        if not errorlevel 1 (
+            echo [OK] FFmpeg erfolgreich installiert.
+        ) else (
+            echo [!] FFmpeg-Installation via winget fehlgeschlagen.
+        )
+    ) else (
+        echo [!] Winget nicht gefunden. Bitte FFmpeg manuell installieren oder in den PATH aufnehmen.
+    )
+)
+
+:: ------------------------------------------------------------------------------
+:: 3. Programmdateien nach %USERPROFILE%\ytdownloader herunterladen
 :: ------------------------------------------------------------------------------
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
@@ -66,7 +90,7 @@ echo start "" javaw -jar "%%~dp0ytdownloader.jar" %%*
 ) > "%INSTALL_DIR%\run.bat"
 
 :: ------------------------------------------------------------------------------
-:: 3. Startmenue- und Desktop-Verknuepfung mit Logo erstellen
+:: 4. Startmenue- und Desktop-Verknuepfung mit Logo erstellen
 :: ------------------------------------------------------------------------------
 echo [*] Erstelle Startmenue- und Desktop-Eintrag mit Logo...
 powershell -NoProfile -Command ^

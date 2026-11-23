@@ -4,7 +4,7 @@
   <groupId>de.exit</groupId>
   <artifactId>ytdownloader</artifactId>
   <name>ytdownloader</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <description>Modern YouTube Downloader Desktop Tool built with JavaFX</description>
   <build>
     <plugins>
