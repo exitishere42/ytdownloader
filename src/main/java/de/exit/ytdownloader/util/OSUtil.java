@@ -122,4 +122,35 @@ public final class OSUtil {
         }
         return false;
     }
+
+    /**
+     * Öffnet eine URL im Standardbrowser des Benutzers (plattformübergreifend).
+     */
+    public static boolean openWebpage(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            if (isWindows()) {
+                new ProcessBuilder("cmd.exe", "/c", "start", "", url).start();
+                return true;
+            } else if (isLinux()) {
+                new ProcessBuilder("xdg-open", url).start();
+                return true;
+            } else if (getOS() == OSType.MAC) {
+                new ProcessBuilder("open", url).start();
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
 }

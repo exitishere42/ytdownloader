@@ -10,7 +10,7 @@ set -e
 REPO="exitishere42/ytdownloader"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/ytdownloader}"
 APP_NAME="ytdownloader"
-JAR_NAME="ytdownloader-1.1.1-all.jar"
+JAR_NAME="ytdownloader-1.2.0-all.jar"
 
 DETECTED_JAR=$(curl -fsSL -H "User-Agent: Mozilla/5.0" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -o '"name": *"ytdownloader-[^"]*-all\.jar"' | head -n 1 | cut -d '"' -f 4 || true)
 if [ -n "$DETECTED_JAR" ]; then

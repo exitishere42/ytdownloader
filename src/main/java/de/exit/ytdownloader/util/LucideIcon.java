@@ -20,6 +20,8 @@ public final class LucideIcon {
     public static final String USER = "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z";
     public static final String CLOCK = "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 5v5l3.5 2";
     public static final String REFRESH = "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M3 21v-5h5";
+    public static final String ARROW_UP_CIRCLE = "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z M12 16V8 M8 12l4-4 4 4";
+    public static final String EXTERNAL_LINK = "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3";
 
     private LucideIcon() {}
 

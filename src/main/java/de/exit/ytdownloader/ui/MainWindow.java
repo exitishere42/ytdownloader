@@ -66,8 +66,10 @@ public class MainWindow extends StackPane {
     private Label previewDuration;
     private VideoMetadata currentMetadata;
 
-    // In-App Modal Settings
+    // In-App Modal Overlays
     private SettingsOverlay settingsOverlay;
+    private AboutUpdateDialog updateDialog;
+    private BrandActionMenu brandActionMenu;
 
     private final Map<String, TaskCard> cardMap = new HashMap<>();
 
@@ -79,6 +81,10 @@ public class MainWindow extends StackPane {
         this.metadataService = new MetadataService(dependencyManager);
         this.queueManager = new QueueManager(engine, settingsService, metadataService);
 
+        this.brandActionMenu = new BrandActionMenu();
+        this.updateDialog = new AboutUpdateDialog();
+        this.brandActionMenu.setAction("updates", () -> updateDialog.show());
+
         setStyle("-fx-background-color: #121212;");
 
         BorderPane mainLayout = new BorderPane();
@@ -87,7 +93,7 @@ public class MainWindow extends StackPane {
 
         settingsOverlay = new SettingsOverlay(settingsService, dependencyManager, this::updateFolderPill);
 
-        getChildren().addAll(mainLayout, settingsOverlay);
+        getChildren().addAll(mainLayout, settingsOverlay, updateDialog);
 
         checkAndInitDependencies();
     }
@@ -100,6 +106,13 @@ public class MainWindow extends StackPane {
         Button brandBtn = new Button("ytdownloader");
         brandBtn.getStyleClass().add("brand-button");
         brandBtn.setGraphic(LucideIcon.createIcon(LucideIcon.DOWNLOAD, Theme.COLOR_PRIMARY_RED, 1.0));
+        brandBtn.setOnAction(e -> {
+            if (brandActionMenu.isShowing()) {
+                brandActionMenu.hide();
+            } else {
+                brandActionMenu.showBelow(brandBtn);
+            }
+        });
 
         // Separator
         Line sep1 = new Line(0, 0, 0, 22);

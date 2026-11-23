@@ -36,6 +36,10 @@
 - **Cross-Platform System Integration**:
   - Native "Show in Folder" action for Windows Explorer and Linux file managers (Nautilus, Dolphin, Nemo, Thunar).
   - Desktop launcher and app menu integration with custom high-resolution logo.
+- **In-App Auto-Update System**:
+  - Brand action dropdown menu in header bar with quick update checks.
+  - Automatic GitHub release detection and changelog display.
+  - Seamless in-app update installer with background restart on Windows and Linux.
 
 ---
 
@@ -50,9 +54,9 @@ curl -fsSL https://github.com/exitishere42/ytdownloader/releases/latest/download
 Download and run [`install.bat`](https://github.com/exitishere42/ytdownloader/releases/latest/download/install.bat) from the [latest release](https://github.com/exitishere42/ytdownloader/releases/latest).
 
 ### Standalone Fat-JAR (Manual)
-Download `ytdownloader-1.1.1-all.jar` from [Releases](https://github.com/exitishere42/ytdownloader/releases/latest) and run:
+Download `ytdownloader-1.2.0-all.jar` from [Releases](https://github.com/exitishere42/ytdownloader/releases/latest) and run:
 ```bash
-java -jar ytdownloader-1.1.1-all.jar
+java -jar ytdownloader-1.2.0-all.jar
 ```
 
 ### Uninstall
@@ -90,7 +94,7 @@ mvn clean package
 
 The standalone fat JAR is generated at:
 ```bash
-target/ytdownloader-1.1.1-all.jar
+target/ytdownloader-1.2.0-all.jar
 ```
 
 ---
